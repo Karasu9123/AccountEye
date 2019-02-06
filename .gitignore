@@ -1,0 +1,8 @@
+Experiments/log/
+Experiments/__pycache__/
+ImagePreprocessing/__pycache__/
+ToArchive/
+Images/
+venv/
+.idea/
+*.hdf5
