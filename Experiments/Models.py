@@ -87,7 +87,6 @@ def CompileModel(model, loss=K.losses.categorical_crossentropy,
                   metrics=metrics)
 
 def FitModel(model, x_train, y_train, x_test, y_test, batch_size=64, epochs=10, useTensorboard=False, modelName='model'):
-    # TODO: Test the callbacks
     callbacks = GetCallbacks(modelName, useTensorboard)
     model.fit(x_train, y_train,
               batch_size=batch_size,
@@ -110,12 +109,6 @@ def GetCallbacks(modelName, useTensorboard, batch_size=64):
         verbose=1,
         save_best_only=True,
         period=1)
-    reduceLR = ReduceLROnPlateau(
-        monitor='val_loss',
-        factor=0.5,
-        patience=5,
-        verbose=1,
-        min_lr=0.0001)
 
     tbCallBack = TensorBoard(
         log_dir='./log', histogram_freq=1,
@@ -126,7 +119,6 @@ def GetCallbacks(modelName, useTensorboard, batch_size=64):
     callbacks = []
     if (useTensorboard):
         callbacks.append(tbCallBack)
-    #callbacks.append(reduceLR)
     callbacks.append(checkpoint)
     return callbacks
 

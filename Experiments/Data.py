@@ -59,34 +59,3 @@ def GeneratorWithAugmentation():
         zoom_range=0.2,
         brightness_range=(0.01, 1.2),
         fill_mode='nearest')
-
-
-"""Кривой вариант, на память
-def load_data():
-    fpaths = []
-    y = []
-
-    # read fpaths and labels from csv
-    with open(path + "labels.csv") as file:
-        reader = csv.DictReader(file, delimiter=',')
-        for row in reader:
-            fpaths.append(path + row["pic_name"])
-            y.append(int(row["digit"]))
-
-    # read images, and cast x, y to ndarray
-    x = np.empty((len(fpaths), channels, img_rows, img_cols), dtype=np.uint8)
-    y = np.asarray(y)
-    for i, fpath in enumerate(fpaths):
-        img = cv2.imread(fpath, 1)
-        x[i, ...] = img.transpose(2, 0, 1)
-
-    # shuffle and split
-    indices = np.random.permutation(x.shape[0])
-    separator = int(train_part * x.shape[0])
-    training_idx, test_idx = indices[:separator], indices[separator:]
-    x_train, x_test = x[training_idx, :], x[test_idx, :]
-    y_train, y_test = y[training_idx], y[test_idx]
-
-    # return couple
-    return (x_train, y_train), (x_test, y_test)
-"""

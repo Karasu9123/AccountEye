@@ -67,27 +67,20 @@ def NewAugmentation(loadCSVFilePath, CSVFileName, loadPicturesPath, savePath, re
     new_csv_file = csv_file.copy()
     new_csv_file.dropna()
     element_amount = len(new_csv_file)
-    element_amount = 3
     for i in range(element_amount):
         file = csv_file.iloc[i].name
-        print(file)
-        print(loadPicturesPath + '/' + file)
         image = cv2.imread(loadPicturesPath + '/' + file, readFormat)[np.newaxis, ...]
-        #print(image)
-        #cv2.imshow(str(i), image)
         aug_counter = 0
         for batch in datagen.flow(image, batch_size=1):
             if aug_counter == countAugmentations:
                 break
             aug_name = file[:-4] + '_A{}.jpg'.format(aug_counter)
-            cv2.imshow(aug_name, batch[0, ...])
-            print(aug_name, batch[0, ...].shape)
             cv2.imwrite(savePath + '/' + aug_name, batch[0, ...])
             row = pd.Series([new_csv_file.iloc[i][0], new_csv_file.iloc[i][1], new_csv_file.iloc[i][2]], index=indexes)
             row.name = aug_name
             new_csv_file = new_csv_file.append(row)
             aug_counter += 1
-    new_csv_file.to_csv(savePath + '/' + 'CSVFileName+Augmentation.csv')
+    new_csv_file.to_csv(savePath + '/' + CSVFileName[:-4] + '+Augmentation.csv')
     cv2.waitKey(0)
 
 '''
@@ -114,7 +107,10 @@ def CLAHE(img):
     return img
 
 def main():
-    NewAugmentation("/home/Shared/AccountEye/Images/Labels", "YouTube.csv", "/home/Shared/AccountEye/Images/Resized/YouTube", "/home/Shared/AccountEye/Images/Augmented/YouTube")
+    NewAugmentation("/home/Shared/AccountEye/Images/Labels",
+                    "Cam_2 (copy).csv",
+                    "/home/Shared/AccountEye/Images/Resized/Meter_2",
+                    "/home/Shared/AccountEye/Images/Augmented/Meter_2")
 
 if __name__ == "__main__":
     main()
