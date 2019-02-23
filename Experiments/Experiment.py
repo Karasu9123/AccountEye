@@ -16,7 +16,7 @@ def ShowWrongPredict(model, x, y):
 
 def experiment():
     # Settings
-    train_part = 0
+    train_part = 0.8
     batch_size = 128
     num_classes = 20
     epochs = 150
@@ -60,6 +60,43 @@ def experiment():
     #M.SaveModel(model, "first_test.h5")
 
     #ShowWrongPredict(model, x_test, y_test_o)
+
+def networkSelection():
+    # TODO: Test and write
+    csvPath = '../Images/Labels/All.csv'
+    imagePath = '../Images/Resized/'
+    train_part = 0.8
+    epochs = 100
+
+    architecture = ['VGG', 'ResNet']
+    convlutionBlocks = [2, 3, 4]
+    denseLayer = [0, 1]
+    filters = [8, 16, 32]
+    numClasses = [('10_Classes', 10), ('20_Classes', 20)]
+    data = [('label', 'image')]
+
+
+    img_rows, img_cols, channels = 48, 32, 3
+    (x_train, y_train_o), (x_test, y_test_o) = Data.load_data(csvPath, imagePath, img_rows, img_cols, channels=channels,
+                                                              train_part=train_part)
+    x_train = x_train.astype('float32')
+    x_test = x_test.astype('float32')
+    x_train /= 255
+    x_test /= 255
+
+    for arc in architecture:
+        for block in convlutionBlocks:
+            for dense in denseLayer:
+                for filter in filters:
+                    for classes in numClasses:
+                        name = '{}_{}-blocks_{}-filters_{}-dense'.format(arc, block, filter, dense, classes[1])
+                        print('-------------------------\n', name)
+                        yTrain = K.utils.to_categorical(y_train_o, classes[1])
+                        yTest = K.utils.to_categorical(y_test_o, classes[1])
+                        model = M.ConstructModel(arc, block, dense, filter, (img_rows, img_cols, channels), classes[1])
+                        M.CompileModel(model)
+                        M.FitGenerator(model, x_train, yTrain, x_test, yTest, epochs=epochs, batch_size=32,
+                                       modelName=name)
 
 def main():
     experiment()

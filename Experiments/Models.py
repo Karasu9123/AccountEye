@@ -5,23 +5,44 @@ from tensorflow.keras.layers import Conv2D, MaxPooling2D, BatchNormalization, Av
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau
 from Experiments.Data import Generator, GeneratorWithAugmentation
 
-def CreateCNNModel(input_shape, num_classes):
+def ConstructModel(architecture, convlutionBlocks, denseLayer, filters, input_shape, numClasses):
+    # TODO: Test this
+    if architecture == 'ResNet':
+        layer = lambda input, filters: ResDecreaseLayer(ResLayer(ResLayer(input, filters), filters), 2*filters)
+    else:  # VGG
+        layer = lambda input, filters: VGGLayer(input, filters)
+
+    inp = Input(shape=input_shape)
+    currentlayer = inp
+
+    if architecture == 'ResNet':
+        currentlayer = Conv2D(filters, (3, 3), padding="same", activation="relu", data_format='channels_last')(currentlayer)
+        currentlayer = BatchNormalization()(currentlayer)
+
+    for i in range(convlutionBlocks):
+        currentlayer = layer(currentlayer, filters)
+        filters *= 2
+
+    currentlayer = Flatten(data_format='channels_last')(currentlayer)
+    for i in range(denseLayer):
+        currentlayer = Dense(256, activation='relu')(currentlayer)
+        currentlayer = Dropout(0.5)(currentlayer)
+
+    result = Dense(numClasses, activation='softmax')(currentlayer)
+    return Model(inputs=inp, outputs=result)
+
+def CreateVGGModel(input_shape, num_classes):
     """Simple cnn model
     Data format - channels last
     Structure:
-    conv 32, 3*3 | pool 2*2
-    conv 64, 3*3 | pool 2*2
+    2 conv 32, 3*3 | pool 2*2
+    2 conv 64, 3*3 | pool 2*2
     dense 128 | dense num_classes, softmax"""
     inp = Input(shape=input_shape)
 
-    conv_1_1 = Conv2D(32, (3, 3), padding="same", activation="relu", data_format='channels_last')(inp)
-    conv_1_2 = Conv2D(32, (3, 3), padding="same", activation="relu", data_format='channels_last')(conv_1_1)
-    pool_1 = MaxPooling2D((2, 2), data_format='channels_last')(conv_1_2)
-
-    conv_2_1 = Conv2D(64, (3, 3), padding="same", activation="relu", data_format='channels_last')(pool_1)
-    conv_2_2 = Conv2D(64, (3, 3), padding="same", activation="relu", data_format='channels_last')(conv_2_1)
-    pool_2 = MaxPooling2D((2, 2), data_format='channels_last')(conv_2_2)
-    dropout_1 = Dropout(0.25)(pool_2)
+    conv_1 = VGGLayer(inp, 32)
+    conv_2 = VGGLayer(conv_1, 64)
+    dropout_1 = Dropout(0.25)(conv_2)
 
     flat = Flatten(data_format='channels_last')(dropout_1)
     dense_1 = Dense(128, activation='relu')(flat)
@@ -53,6 +74,12 @@ def CreateResNetModel(input_shape, num_classes):
 
     result = Dense(num_classes, activation='softmax')(dense_1)
     return Model(inputs=inp, outputs=result)
+
+def VGGLayer(input, filters):
+    conv_1 = Conv2D(filters, (3, 3), padding="same", activation="relu", data_format='channels_last')(input)
+    conv_2 = Conv2D(filters, (3, 3), padding="same", activation="relu", data_format='channels_last')(conv_1)
+    pool = MaxPooling2D((2, 2), data_format='channels_last')(conv_2)
+    return pool
 
 def ResLayer(input, filters):
     bn_1 = BatchNormalization()(input)
