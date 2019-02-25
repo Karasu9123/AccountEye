@@ -1,15 +1,16 @@
 import cv2
 import numpy as np
+import ImagePreprocessing.ImageProcessing as IP
 
 def GetCam(idCam=0):
     return cv2.VideoCapture(idCam)
 
 def GetFoto(cam, channels=3):
     ret, foto = cam.read()
-
-    # foto = cv2.imread("meter.jpg", 1)
-    if channels == 1:
-        foto = cv2.cvtColor(foto, cv2.COLOR_BGR2GRAY)
+    foto = IP.preproc(foto)
+    #foto = cv2.imread("meter.jpg", 1)
+    #if channels == 1:
+    foto = cv2.cvtColor(foto, cv2.COLOR_GRAY2BGR)
     return foto
 
 def main():
@@ -17,13 +18,13 @@ def main():
     from tensorflow.keras.models import load_model
 
     settingsPath = 'settings.json'
-    modelPath = '..\Experiments\ResNet_All-130-0.89.hdf5'
+    modelPath = '/home/shared/AccountEye/Experiments/ResNet_10_All-131-0.94.hdf5'
     showOriginal = True
     showCrop = False
     channels = 3
 
     # Load Settings
-    cam = GetCam(1)
+    cam = GetCam()
     tempFoto = GetFoto(cam)
     with open(settingsPath) as f:
         settings = json.load(f)
@@ -47,7 +48,7 @@ def main():
         for i in range(0, digitNum):
             temp = foto[y0:y1,
                         x0 + i*length:x0 + (i+1)*length].copy()
-            #print(temp.shape)
+            print(temp.shape)
             temp = cv2.resize(temp, (32, 48))
             if channels == 1:
                 temp = temp[..., np.newaxis]
@@ -58,7 +59,7 @@ def main():
         for im in crop:
             temp = model.predict(np.expand_dims(im, axis=0))
             temp = np.argmax(temp, axis=1)
-            predict.append(temp/2)
+            predict.append(temp)
         print(predict)
         for number in predict:
             print(number[0], end=' ')
@@ -66,7 +67,7 @@ def main():
         if showCrop:
             for i in range(0, digitNum):
                 cv2.imshow(str(i), crop[i])
-        k = cv2.waitKey(1)
+        k = cv2.waitKey(500)
         if k == ord('q'):
             break
 

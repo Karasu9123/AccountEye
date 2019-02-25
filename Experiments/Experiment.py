@@ -10,26 +10,24 @@ def ShowWrongPredict(model, x, y):
         predict = np.argmax(predict, axis=1)
         if (predict != y[i]):
             cv2.imshow(str(i), x[i])
-            print(i, "| y: ", y[i]/2, " x: ", predict/2)
+            print(i, "| y: ", y[i] / 2, " x: ", predict / 2)
             cv2.waitKey(0)
     cv2.waitKey(0)
 
 def experiment():
     # Settings
-    train_part = 0.8
+    train_part = 0.7
     batch_size = 128
     num_classes = 20
     epochs = 150
     img_rows, img_cols, channels = 48, 32, 3
     input_shape = (img_rows, img_cols, channels)
-    #path = "sobelDS_3/"
-    #file = 'labels.csv'
-    csvPath = '../Images/Labels/All.csv'
-    imagePath = '../Images/Resized/'
+    csvPath = '../Images/Labels/All_Blur+Augmentation.csv'
+    imagePath = '../Images/Augmented/BlurAll/'
 
     # Load data
     (x_train, y_train_o), (x_test, y_test_o) = Data.load_data(csvPath, imagePath, img_rows, img_cols, channels=channels,
-                                                              train_part=train_part)
+                                                              train_part=train_part, labelRow='10_Classes')
 
     # Set type.
     x_train = x_train.astype('float32')
@@ -49,17 +47,17 @@ def experiment():
     y_test = K.utils.to_categorical(y_test_o, num_classes)
 
     # Create model.
-    model = M.LoadModel("/home/shared/AccountEye/Experiments/log/ResNet_All-130-0.89.hdf5")
-    #model = M.CreateResNetModel(input_shape, num_classes)
-    #model.summary()
+    # model = M.LoadModel("ResNet_10_All-131-0.94.hdf5")
+    model = M.CreateResNetModel(input_shape, num_classes)
+    # model.summary()
 
     # Compile and fit.
     M.CompileModel(model)
-    #M.FitGenerator(model, x_train, y_train, x_test, y_test, epochs=epochs, batch_size=32, modelName='ResNet_Grey_All')
+    M.FitModel(model, x_train, y_train, x_test, y_test, epochs=epochs, batch_size=32, modelName='ResNet_All_Blur')
     M.EvaluateModel(model, x_test, y_test)
-    #M.SaveModel(model, "first_test.h5")
+    # M.SaveModel(model, "first_test.h5")
 
-    #ShowWrongPredict(model, x_test, y_test_o)
+    # ShowWrongPredict(model, x_test, y_test_o)
 
 def networkSelection():
     # TODO: Test and write
@@ -68,13 +66,12 @@ def networkSelection():
     train_part = 0.8
     epochs = 100
 
-    architecture = ['VGG', 'ResNet']
+    architecture = ['ResNet', 'VGG']
     convlutionBlocks = [2, 3, 4]
     denseLayer = [0, 1]
     filters = [8, 16, 32]
-    numClasses = [('10_Classes', 10), ('20_Classes', 20)]
+    numClasses = [('20_Classes', 20)]
     data = [('label', 'image')]
-
 
     img_rows, img_cols, channels = 48, 32, 3
     (x_train, y_train_o), (x_test, y_test_o) = Data.load_data(csvPath, imagePath, img_rows, img_cols, channels=channels,
@@ -99,6 +96,7 @@ def networkSelection():
                                        modelName=name)
 
 def main():
+    # networkSelection()
     experiment()
 
 if __name__ == '__main__':

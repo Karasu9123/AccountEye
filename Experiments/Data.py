@@ -25,9 +25,9 @@ def load_data(csvPath, imagePath, rows, cols, channels=3, train_part=0.8, imRow=
     x = np.empty((count_row, rows, cols, channels), dtype=np.uint8)
 
     for index, row in df.iterrows():
-        if (channels == 3):
+        if channels == 3:
             x[index, ...] = cv2.imread(imagePath + row[imRow], 1)
-        elif (channels == 1):
+        elif channels == 1:
             x[index, ...] = cv2.imread(imagePath + row[imRow], 0)[..., np.newaxis]
 
     # Split data
