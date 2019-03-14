@@ -3,14 +3,16 @@ import numpy as np
 import ImagePreprocessing.ImageProcessing as IP
 
 def GetCam(idCam=0):
-    return cv2.VideoCapture(idCam)
+    cam = cv2.VideoCapture(idCam)
+    #cam.set(cv2.CAP_PROP_EXPOSURE, -5)
+    return cam
 
 def GetFoto(cam, channels=3):
-    ret, foto = cam.read()
-    foto = IP.preproc(foto)
-    #foto = cv2.imread("meter.jpg", 1)
+    #ret, foto = cam.read()
+    #foto = IP.preproc(foto)
+    foto = cv2.imread("meter.jpg", 1)
     #if channels == 1:
-    foto = cv2.cvtColor(foto, cv2.COLOR_GRAY2BGR)
+    #foto = cv2.cvtColor(foto, cv2.COLOR_GRAY2BGR)
     return foto
 
 def main():
@@ -18,14 +20,15 @@ def main():
     from tensorflow.keras.models import load_model
 
     settingsPath = 'settings.json'
-    modelPath = '/home/shared/AccountEye/Experiments/ResNet_10_All-131-0.94.hdf5'
+    modelPath = '/home/olexii/github/AccountEye/Experiments/log/ResNet_All_Blur-03-0.98.hdf5'
     showOriginal = True
-    showCrop = False
+    showCrop = True
     channels = 3
 
     # Load Settings
     cam = GetCam()
     tempFoto = GetFoto(cam)
+    tempFoto = cv2.resize(tempFoto, (1024, 682))
     with open(settingsPath) as f:
         settings = json.load(f)
     x0 = int(settings["region"]["x0"] * tempFoto.shape[1])
@@ -36,20 +39,22 @@ def main():
     length = abs(x0 - x1) // digitNum
     model = load_model(modelPath)
 
-    while True:
+    for i in range(1):
         foto = GetFoto(cam, channels)
+        foto = cv2.resize(foto, (1024, 682))
         if showOriginal:
             im = cv2.rectangle(foto, (x0, y0), (x1, y1), (0, 255, 0), 1)
             cv2.imshow("Original", im)
-        print('Original shape: ', foto.shape)
+        #print('Original shape: ', foto.shape)
 
         # Crop and resize
+
         crop = []
         for i in range(0, digitNum):
-            temp = foto[y0:y1,
-                        x0 + i*length:x0 + (i+1)*length].copy()
+            temp = foto[y0:y1, x0 + i*length:x0 + (i+1)*length].copy()
             print(temp.shape)
-            temp = cv2.resize(temp, (32, 48))
+            temp = IP.preproc(cv2.resize(temp, (32, 48)))
+            temp = cv2.cvtColor(temp, cv2.COLOR_GRAY2BGR)
             if channels == 1:
                 temp = temp[..., np.newaxis]
             crop.append(temp)
@@ -67,7 +72,7 @@ def main():
         if showCrop:
             for i in range(0, digitNum):
                 cv2.imshow(str(i), crop[i])
-        k = cv2.waitKey(500)
+        k = cv2.waitKey(0)
         if k == ord('q'):
             break
 

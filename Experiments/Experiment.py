@@ -16,45 +16,51 @@ def ShowWrongPredict(model, x, y):
 
 def experiment():
     # Settings
-    train_part = 0.7
+    train_part = 0.6
+    test_part = 0.3
     batch_size = 128
     num_classes = 20
-    epochs = 150
+    epochs = 5
     img_rows, img_cols, channels = 48, 32, 3
     input_shape = (img_rows, img_cols, channels)
-    csvPath = '../Images/Labels/All_Blur+Augmentation.csv'
-    imagePath = '../Images/Augmented/BlurAll/'
+    csvPaths = ['../Images/Augmented/NewBalanced_Blur+Augmentation.csv',
+                '../Images/Augmented/YouTube_Blur+Augmentation.csv']
+    imgPath = '../Images/Augmented/img/'
 
     # Load data
-    (x_train, y_train_o), (x_test, y_test_o) = Data.load_data(csvPath, imagePath, img_rows, img_cols, channels=channels,
-                                                              train_part=train_part, labelRow='10_Classes')
+    (x_train, y_train_o), (x_test, y_test_o), (x_valid, y_valid_o) = Data.load_data(csvPaths, imgPath, img_rows, img_cols, channels=channels,
+                                                              train_part=train_part, test_part=test_part, labelRow='10_Classes')
 
     # Set type.
     x_train = x_train.astype('float32')
     x_test = x_test.astype('float32')
+    x_valid = x_valid.astype('float32')
 
     # Normalize to (0, 1) interval.
     x_train /= 255
     x_test /= 255
+    x_valid /= 255
 
     # Print x.
     print('x_train shape:', x_train.shape)
     print(x_train.shape[0], 'train samples')
     print(x_test.shape[0], 'test samples')
+    print(x_valid.shape[0], 'valid samples')
 
     # Converts y vector to binary class matrix.
     y_train = K.utils.to_categorical(y_train_o, num_classes)
     y_test = K.utils.to_categorical(y_test_o, num_classes)
+    y_valid = K.utils.to_categorical(y_valid_o, num_classes)
 
     # Create model.
-    # model = M.LoadModel("ResNet_10_All-131-0.94.hdf5")
+    #model = M.LoadModel("ResNet_10_All-131-0.94.hdf5")
     model = M.CreateResNetModel(input_shape, num_classes)
     # model.summary()
 
     # Compile and fit.
     M.CompileModel(model)
     M.FitModel(model, x_train, y_train, x_test, y_test, epochs=epochs, batch_size=32, modelName='ResNet_All_Blur')
-    M.EvaluateModel(model, x_test, y_test)
+    M.EvaluateModel(model, x_valid, y_valid)
     # M.SaveModel(model, "first_test.h5")
 
     # ShowWrongPredict(model, x_test, y_test_o)

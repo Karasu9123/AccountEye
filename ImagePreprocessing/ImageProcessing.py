@@ -49,12 +49,12 @@ def Augmentation(loadPath, savePath, readFormat = 1, countAugmentations = 20):
             if i > countAugmentations:
                 break
 
-def NewAugmentation(loadCSVFilePath, CSVFileName, loadPicturesPath, savePath, readFormat = 1, countAugmentations = 1):
+def NewAugmentation(loadCSVFilePath, CSVFileName, loadPicturesPath, savePath, readFormat = 1, countAugmentations = 500):
 
     columns = ['Image_Name', '10_Classes', '20_Classes_Float', '20_Classes']
     indexes = ['10_Classes', '20_Classes_Float', '20_Classes']
     datagen = ImageDataGenerator(
-        rotation_range=20,
+        rotation_range=10,
         width_shift_range=0.2,
         height_shift_range=0.2,
         #rescale=1. / 255,
@@ -82,7 +82,6 @@ def NewAugmentation(loadCSVFilePath, CSVFileName, loadPicturesPath, savePath, re
             aug_counter += 1
     new_csv_file.to_csv(savePath + '/' + CSVFileName[:-4] + '_Blur+Augmentation.csv')
     cv2.waitKey(0)
-
 
 def hog(im, ksize = 1):
     im = np.float32(im)
@@ -142,25 +141,27 @@ def preproc(im):
     im[:, :, 2] = 0
     im = dog(im, 1, 6)
     im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    cv2.threshold(im, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU, im)
-    im = sharpen(im, 10, 1)
-    im = sobel(im)
-    cv2.threshold(im, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU, im)
+    #cv2.threshold(im, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU, im)
+    im = equalize(im)
+    #im = sharpen(im, 10, 1)
+    #im = sobel(im)
+    #cv2.threshold(im, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU, im)
     return im
 
 def main():
-    """NewAugmentation("/home/shared/AccountEye/Images/Labels",
-                    "All.csv",
-                    "/home/shared/AccountEye/Images/BlurAndThreshold",
-                    "/home/shared/AccountEye/Images/Augmented/BlurAll")"""
-    sets = ["Other/", "YouTube/", "Meter_1/", "Meter_2/"]
+    """NewAugmentation("/home/olexii/github/AccountEye/Images/Labels",
+                    "YouTube.csv",
+                    "/home/olexii/github/AccountEye/Images/Original",
+                    "/home/olexii/github/AccountEye/Images/Augmented")"""
+
+    sets = ["Meter_1/", "Meter_2/", "NewBalanced/", "Stock/"]
     for s in sets:
         names = GetAllNames("../Images/Original/" + s)
         for name in names:
             im = cv2.imread("../Images/Original/" + s + name, 1)
             im = cv2.resize(im, (32, 48))
             im = preproc(im)
-            cv2.imwrite("../Images/BlurAndThreshold/" + s + name, im)
+            cv2.imwrite("../Images/Preproc/" + s + name, im)
 
 if __name__ == "__main__":
     main()

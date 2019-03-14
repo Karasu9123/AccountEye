@@ -4,18 +4,22 @@ import cv2
 import random
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
+
 #def load_data(path, csvFileName, rows, cols, channels = 3, train_part=0.8, imRow='Image_name', labelRow='10_Classes'):
   #  pass
 
-def load_data(csvPath, imagePath, rows, cols, channels=3, train_part=0.8, imRow='Image_Name', labelRow='20_Classes'):
+def load_data(csvPaths, imgPath, rows, cols, channels=3, train_part=0.6, test_part=0.3, imRow='Image_Name', labelRow='20_Classes'):
     """Channels: 3 for RGB, 1 for GS(gray scale)"""
     # TODO Try remove `rows` & `cols` maybe
     #   Think about `imCol` & `labelCol`
 
-    df = pd.read_csv(csvPath)
+    li = []
+    for i in range(len(csvPaths)):
+        df = pd.read_csv(csvPaths[i], index_col=None, header=0)
+        li.append(df)
 
-    # Remove nulls
-    df.dropna()
+    df = pd.concat(li, axis=0, ignore_index=True)
+    df = cropDS(df)
 
     # Shuffle
     df = df.sample(frac=1).reset_index(drop=True)
@@ -25,17 +29,39 @@ def load_data(csvPath, imagePath, rows, cols, channels=3, train_part=0.8, imRow=
     x = np.empty((count_row, rows, cols, channels), dtype=np.uint8)
 
     for index, row in df.iterrows():
+        #print(imgPath + row[imRow])
         if channels == 3:
-            x[index, ...] = cv2.imread(imagePath + row[imRow], 1)
+            x[index, ...] = cv2.imread(imgPath + row[imRow], 1)
         elif channels == 1:
-            x[index, ...] = cv2.imread(imagePath + row[imRow], 0)[..., np.newaxis]
+            x[index, ...] = cv2.imread(imgPath + row[imRow], 0)[..., np.newaxis]
 
     # Split data
-    separator = int(train_part * count_row)
-    x_train, x_test = x[:separator, ...], x[separator:, ...]
-    y_train, y_test = df.iloc[:separator][labelRow].values, df.iloc[separator:][labelRow].values
+    train = int(train_part * count_row)
+    test = int((train_part + test_part)* count_row)
+    x_train, x_test, x_valid = x[:train, ...], x[train:test, ...], x[test:, ...]
+    y_train, y_test, y_valid = df.iloc[:train][labelRow].values, df.iloc[train:test][labelRow].values, df.iloc[test:][labelRow].values
+    return (x_train, y_train), (x_test, y_test), (x_valid, y_valid)
 
-    return (x_train, y_train), (x_test, y_test)
+def countNumbers(csvPath):
+    df = pd.read_csv(csvPath)
+    count = []
+    for col in df.columns:
+        count.append(df.groupby([col])[[col]].count())
+    return count
+
+def minCount(df, column = 1):
+    col = df.columns[column]
+    count = df.groupby([col])[[col]].count()
+    return count.min(0)[0]
+
+def cropDS(df, column = 1):
+    min = minCount(df)
+    col = df.columns[column]
+    li = []
+    for i in range(10):
+        li.append(df[df[col] == i].sample(frac=1).head(min))
+    df = pd.concat(li, axis=0, ignore_index=True)
+    return df
 
 def Generator(features, labels, batch_size):
     # FIXME: It's not work! It's just a sample!
