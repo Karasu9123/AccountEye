@@ -1,4 +1,5 @@
 import tensorflow.keras as K
+from tensorflow.keras.utils import multi_gpu_model
 import Models as M
 import Data
 import cv2
@@ -18,18 +19,17 @@ def experiment():
     # Settings
     train_part = 0.6
     test_part = 0.3
-    batch_size = 128
+    batch_size = 256
     num_classes = 20
-    epochs = 5
-    img_rows, img_cols, channels = 48, 32, 3
+    epochs = 10
+    img_rows, img_cols, channels = 48, 32, 1
     input_shape = (img_rows, img_cols, channels)
-    csvPaths = ['../Images/Augmented/NewBalanced_Blur+Augmentation.csv',
-                '../Images/Augmented/YouTube_Blur+Augmentation.csv']
-    imgPath = '../Images/Augmented/img/'
+    csvPaths = ['../Images/Augmented/YouTube_Blur+Augmentation.csv', '../Images/Augmented/NewBalanced_Blur+Augmentation.csv', '../Images/Augmented/Clean_Blur+Augmentation.csv']
+    imgPath = '../Images/Preproc/'
 
     # Load data
     (x_train, y_train_o), (x_test, y_test_o), (x_valid, y_valid_o) = Data.load_data(csvPaths, imgPath, img_rows, img_cols, channels=channels,
-                                                              train_part=train_part, test_part=test_part, labelRow='10_Classes')
+                                                              train_part=train_part, test_part=test_part, labelRow='20_Classes')
 
     # Set type.
     x_train = x_train.astype('float32')
@@ -54,14 +54,14 @@ def experiment():
 
     # Create model.
     #model = M.LoadModel("ResNet_10_All-131-0.94.hdf5")
-    model = M.CreateResNetModel(input_shape, num_classes)
+    oldmodel = M.CreateResNetModel(input_shape, num_classes)
+    model = multi_gpu_model(oldmodel, gpus=2)
     # model.summary()
 
     # Compile and fit.
     M.CompileModel(model)
-    M.FitModel(model, x_train, y_train, x_test, y_test, epochs=epochs, batch_size=32, modelName='ResNet_All_Blur')
+    M.FitModel(model, x_train, y_train, x_test, y_test, epochs=epochs, batch_size=batch_size, modelName='ResNet_All_Blur')
     M.EvaluateModel(model, x_valid, y_valid)
-    # M.SaveModel(model, "first_test.h5")
 
     # ShowWrongPredict(model, x_test, y_test_o)
 
