@@ -7,6 +7,8 @@ import math
 import cv2
 import json
 
+fromfile = True
+file = '14'
 
 def countCameras():
     count = 0
@@ -23,15 +25,15 @@ def Sobel(data):
     newData = np.ndarray((data.shape[0] - 2, data.shape[1] - 2), dtype=int)
     for x in range(newData.shape[0]):
         for y in range(newData.shape[1]):
-            newData[x, y] = math.sqrt((-int(data[x-1, y-1]) + int(data[x-1, y+1]) - 2*int(data[x, y-1]) + 2*int(data[x, y+1]) - \
-                                      int(data[x+1, y-1]) + int(data[x+1, y+1])) ** 2 + (-int(data[x-1, y-1]) - 2*int(data[x-1, y]) - \
+            newData[x, y] = math.sqrt((-int(data[x-1, y-1]) + int(data[x-1, y+1]) - 2*int(data[x, y-1]) + 2*int(data[x, y+1]) -
+                                      int(data[x+1, y-1]) + int(data[x+1, y+1])) ** 2 + (-int(data[x-1, y-1]) - 2*int(data[x-1, y]) -
                                       int(data[x-1, y+1]) + int(data[x+1, y-1]) + 2*int(data[x+1, y]) + int(data[x+1, y+1])) ** 2)
     return newData
 
 
 class Settings:
     def __init__(self):
-        self.camCount = countCameras()
+        self.camCount = 0
         self.root = tk.Tk()
         self.canvas = tk.Canvas(self.root)
         self.camLabel = tk.Label(self.root)
@@ -47,11 +49,15 @@ class Settings:
         self.isDrawing = False
         self.startPoint = None
         self.endPoint = None
-        if self.camCount == 0:
-            messagebox.showwarning("Camera not found!", "Please, connect camera to device and try again.")
-            self.root.quit()
+        if not fromfile:
+            self.camCount = countCameras()
+            if self.camCount == 0:
+                messagebox.showwarning("Camera not found!", "Please, connect camera to device and try again.")
+                self.root.quit()
+            else:
+                self.cap = cv2.VideoCapture(self.curIndex)
+                self.showVideo()
         else:
-            self.cap = cv2.VideoCapture(self.curIndex)
             self.showVideo()
 
     def createWidgets(self):
@@ -103,18 +109,22 @@ class Settings:
         self.canvas.pack(side=tk.BOTTOM, expand=tk.YES, fill=tk.BOTH)
 
     def showVideo(self):
+        data = None
+        if fromfile:
+            data = cv2.imread('Test/' + file + '.jpg', 1)
         while True:
-            if not self.cap.isOpened():
-                print("camera isn't open")
-                cv2.waitKey(200)
-                continue
-            flag, data = self.cap.read()
-            if not flag:
-                print("can't read frame")
-                cv2.waitKey(100)
-                continue
-            try:
+            if not fromfile:
+                if not self.cap.isOpened():
+                    print("camera isn't open")
+                    cv2.waitKey(200)
+                    continue
+                flag, data = self.cap.read()
                 data = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
+                if not flag:
+                    print("can't read frame")
+                    cv2.waitKey(100)
+                    continue
+            try:
                 im = Image.fromarray(data)
                 im = im.resize((int(self.canvas.winfo_width()), int(self.canvas.winfo_height())), Image.ANTIALIAS)
                 photo = ImageTk.PhotoImage(image=im)
@@ -124,7 +134,8 @@ class Settings:
                 self.root.update()
                 cv2.waitKey(25)
             except:
-                self.cap.release()
+                if not fromfile:
+                    self.cap.release()
                 raise
 
     def selectedCamChanged(self, evt):
@@ -153,7 +164,8 @@ class Settings:
                 "digitNum": int(self.digitNum.get()),
                 "region": {"x0": x0, "y0": y0, "x1": x1, "y1": y1}
             }
-            with open(str(d) + "/settings.json", "w") as outfile:
+            path = str(d) + '/' + file + ".json" if fromfile else str(d) + "/settings.json"
+            with open(path, "w") as outfile:
                 json.dump(data, outfile)
 
     def buttonClick(self, evt):
