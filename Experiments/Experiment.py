@@ -1,9 +1,10 @@
 import tensorflow.keras as K
 from tensorflow.keras.utils import multi_gpu_model
-import Models as M
-import Data
+import Experiments.Models as M
+import Experiments.Data as Data
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 def ShowWrongPredict(model, x, y):
     for i in range(0, y.size):
@@ -54,8 +55,8 @@ def experiment():
 
     # Create model.
     #model = M.LoadModel("ResNet_10_All-131-0.94.hdf5")
-    oldmodel = M.CreateResNetModel(input_shape, num_classes)
-    model = multi_gpu_model(oldmodel, gpus=2)
+    model = M.CreateResNetModel(input_shape, num_classes)
+    model = multi_gpu_model(model, gpus=2)
     # model.summary()
 
     # Compile and fit.
@@ -86,6 +87,7 @@ def networkSelection():
     x_test = x_test.astype('float32')
     x_train /= 255
     x_test /= 255
+    history = {}
 
     for arc in architecture:
         for block in convlutionBlocks:
@@ -97,8 +99,9 @@ def networkSelection():
                         yTrain = K.utils.to_categorical(y_train_o, classes[1])
                         yTest = K.utils.to_categorical(y_test_o, classes[1])
                         model = M.ConstructModel(arc, block, dense, filter, (img_rows, img_cols, channels), classes[1])
+                        model = multi_gpu_model(model, gpus=2)
                         M.CompileModel(model)
-                        M.FitGenerator(model, x_train, yTrain, x_test, yTest, epochs=epochs, batch_size=32,
+                        history[name] = M.FitGenerator(model, x_train, yTrain, x_test, yTest, epochs=epochs, batch_size=32,
                                        modelName=name)
 
 def main():

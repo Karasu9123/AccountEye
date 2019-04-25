@@ -115,12 +115,13 @@ def CompileModel(model, loss=K.losses.categorical_crossentropy,
 
 def FitModel(model, x_train, y_train, x_test, y_test, batch_size=64, epochs=10, useTensorboard=False, modelName='model'):
     callbacks = GetCallbacks(modelName, useTensorboard)
-    model.fit(x_train, y_train,
+    history = model.fit(x_train, y_train,
               batch_size=batch_size,
               epochs=epochs,
               verbose=1,
               callbacks=callbacks,
               validation_data=(x_test, y_test))
+    return history
 
 def FitGenerator(model, x_train, y_train, x_test, y_test, batch_size=64, epochs=10, useTensorboard=False, modelName='model'):
     callbacks = GetCallbacks(modelName, useTensorboard)

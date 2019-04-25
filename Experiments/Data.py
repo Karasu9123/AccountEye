@@ -4,22 +4,15 @@ import cv2
 import random
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-
-#def load_data(path, csvFileName, rows, cols, channels = 3, train_part=0.8, imRow='Image_name', labelRow='10_Classes'):
-  #  pass
-
 def load_data(csvPaths, imgPath, rows, cols, channels=3, train_part=0.6, test_part=0.3, imRow='Image_Name', labelRow='20_Classes'):
     """Channels: 3 for RGB, 1 for GS(gray scale)"""
-    # TODO Try remove `rows` & `cols` maybe
-    #   Think about `imCol` & `labelCol`
-
     li = []
     for i in range(len(csvPaths)):
         df = pd.read_csv(csvPaths[i], index_col=None, header=0)
         li.append(df)
 
     df = pd.concat(li, axis=0, ignore_index=True)
-    df = cropDS(df)
+    df = cropDS(df, 3 if labelRow=='20_Classes' else 1)
 
     # Shuffle
     df = df.sample(frac=1).reset_index(drop=True)
@@ -29,7 +22,7 @@ def load_data(csvPaths, imgPath, rows, cols, channels=3, train_part=0.6, test_pa
     x = np.empty((count_row, rows, cols, channels), dtype=np.uint8)
 
     for index, row in df.iterrows():
-        #print(imgPath + row[imRow])
+        # print(imgPath + row[imRow])
         if channels == 3:
             x[index, ...] = cv2.imread(imgPath + row[imRow], 1)
         elif channels == 1:
@@ -49,16 +42,17 @@ def countNumbers(csvPath):
         count.append(df.groupby([col])[[col]].count())
     return count
 
-def minCount(df, column = 1):
+def minCount(df, column):
     col = df.columns[column]
     count = df.groupby([col])[[col]].count()
     return count.min(0)[0]
 
 def cropDS(df, column = 1):
-    min = minCount(df)
+    min = minCount(df, column) # количество изображений класса с найменьшим количеством примеров
     col = df.columns[column]
     li = []
-    for i in range(10):
+    rng = 10 if column == 1 else 20
+    for i in range(rng):
         li.append(df[df[col] == i].sample(frac=1).head(min))
     df = pd.concat(li, axis=0, ignore_index=True)
     return df
