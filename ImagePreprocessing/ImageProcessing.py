@@ -1,4 +1,4 @@
-from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img
+import tensorflow.keras.preprocessing.image
 from functools import partial
 import numpy as np
 import cv2
@@ -7,90 +7,46 @@ import pandas as pd
 import multiprocessing as mp
 import shutil as sh
 
-CORE_COUNT = 12
+CPU_CORES = 10
+
+
 
 def GetAllNames(path):
     return os.listdir(path)
 
-def parallelize_data(data, func):
-    data_split = np.array_split(data, CORE_COUNT)
-    pool = mp.Pool(processes=CORE_COUNT)
-    new_data = pd.concat(pool.map(func, data_split))
-    pool.close()
-    pool.join()
-    return  new_data
 
-def MakeAugmentation(datagen, loadPicturesPath, readFormat, countAugmentations, savePath, indexes, csv_file):
-    element_amount = len(csv_file)
-    for i in range(element_amount):
-        file = csv_file.iloc[i].name
-        sh.copyfile(loadPicturesPath + '/' + file, savePath + '/' + file)
-        image = cv2.imread(loadPicturesPath + '/' + file, readFormat)[np.newaxis, ...]
-        aug_counter = 0
-        for batch in datagen.flow(image, batch_size=1):
-            if aug_counter == countAugmentations:
-                break
-            aug_name = file[:-4] + '_A{}.jpg'.format(aug_counter)
-            cv2.imwrite(savePath + '/' + aug_name, batch[0, ...])
-            row = pd.Series([csv_file.iloc[i][0], csv_file.iloc[i][1], csv_file.iloc[i][2]], index=indexes)
-            row.name = aug_name
-            csv_file = csv_file.append(row)
-            aug_counter += 1
-    return  csv_file
+def RenameAll(path, newName):
+    names = GetAllNames(path)
+    for i, name in enumerate(names):
+        newName = newName + '_' + str(i) + ".jpg"
+        src = path + name
+        dst = path + newName
+        os.rename(src, dst)
 
-def Rename(path, newName):
-    i = 0
-    l = GetAllNames(path)
-    for file in l:
-        newname = newName + '_' + str(i) + ".jpg"
-        src = path + file
-        newname = path + newname
-        os.rename(src, newname)
-        i += 1
 
-def Resize(loadPath, savePath, outputSize = (32, 48), readFormat = 1):
+def ResizeAll(loadPath, savePath, outputSize = (32, 48), readFormat = 1):
     names = GetAllNames(loadPath)
     for name in names:
-        image = cv2.imread(loadPath+'/'+name, readFormat)
-        image = cv2.resize(image, outputSize)
-        cv2.imwrite(savePath+'/'+name, image)
+        img = cv2.imread(loadPath + name, readFormat)
+        img = cv2.resize(img, outputSize)
+        cv2.imwrite(savePath + name, img)
 
-def NewAugmentation(loadCSVFilePath, CSVFileName, loadPicturesPath, savePath, readFormat = 1, countAugmentations = 500):
 
-    columns = ['Image_Name', '10_Classes', '20_Classes_Float', '20_Classes']
-    indexes = ['10_Classes', '20_Classes_Float', '20_Classes']
-    datagen = ImageDataGenerator(
-        rotation_range=10,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        #rescale=1. / 255,
-        shear_range=0.2,
-        zoom_range=0.2,
-        brightness_range=(0.1, 1.2),
-        fill_mode='nearest')
+def HistogramEqualization(img):
+    if img.ndim == 3:
+        lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        l = cv2.equalizeHist(l)
+        lab = cv2.merge((l, a, b))
+        img = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    else:
+        img = cv2.equalizeHist(img)
 
-    csv_file = pd.read_csv(loadCSVFilePath + '/' + CSVFileName, index_col=0)
-    csv_file.dropna()
-    func = partial(MakeAugmentation, datagen, loadPicturesPath, readFormat, countAugmentations, savePath, indexes)
-    csv_file = parallelize_data(csv_file, func)
-    csv_file.to_csv(savePath + '/' + CSVFileName[:-4] + '_Blur+Augmentation.csv')
-    cv2.waitKey(0)
+    return img
 
-def hog(im, ksize = 1):
-    im = np.float32(im)
-    gx = cv2.Sobel(im, cv2.CV_32F, 1, 0, ksize=ksize)
-    gy = cv2.Sobel(im, cv2.CV_32F, 0, 1, ksize=ksize)
-    grad = np.uint8(np.sqrt(np.power(gx, 2) + np.power(gy, 2)))
-    mag, angle = cv2.cartToPolar(gx, gy, angleInDegrees=True)
-    return grad
 
-def sobel(img, ksize=1):
-    img = np.float32(img)
-    gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=ksize)
-    gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=ksize)
-    return np.uint8(np.sqrt(np.power(gx, 2) + np.power(gy, 2)))
-
-def clahe(img, clipLimit=5.0, tileGridSize=(3, 3)):
+def CLAHE(img, clipLimit=5.0, tileGridSize=(3, 3)):
+    """ Contrast Limited Adaptive Histogram Equalization. """
     clahe = cv2.createCLAHE(clipLimit, tileGridSize)
     if img.ndim == 3:
         lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
@@ -100,75 +56,151 @@ def clahe(img, clipLimit=5.0, tileGridSize=(3, 3)):
         img = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
     else:
         img = clahe.apply(img)
+
     return img
 
-def dog(im, inner, outer):
-    innerBlur = cv2.GaussianBlur(im, (0, 0), inner).astype(np.int)
-    outerBlur = cv2.GaussianBlur(im, (0, 0), outer).astype(np.int)
-    return np.clip(innerBlur - outerBlur, 0, 255).astype(np.ubyte)
 
-def equalize(im):
-    if im.ndim == 3:
-        lab = cv2.cvtColor(im, cv2.COLOR_BGR2LAB)
-        l, a, b = cv2.split(lab)
-        l = cv2.equalizeHist(l)
-        lab = cv2.merge((l, a, b))
-        im = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-    else:
-        im = cv2.equalizeHist(im)
-    return im
+def Sharpen(img, sigma, amount):
+    """ The Sharpen filter enhance colors and accentuates edges but also any noise or blemish
+     and it may create noise in graduated color areas like the sky or a water surface. """
+    blur = cv2.GaussianBlur(img, (0, 0), sigma)
+    sharpened = cv2.addWeighted(img, amount + 1, blur, -amount, 0)
 
-def sharpen(im, sigma, amount):
-    blur = cv2.GaussianBlur(im, (0, 0), sigma)
-    im = (amount + 1) *  im.astype(np.int) - amount * blur.astype(np.int)
-    return np.clip(im, 0, 255).astype(np.ubyte)
+    return sharpened
 
-def preproc(im):
-    im = cv2.bilateralFilter(im, 3, 10, 10)
-    im = sharpen(im, 7, 2)
-    im = cv2.bilateralFilter(im, 3, 3, 3)
-    im = sharpen(im, 2, 1)
-    mask = (im[:, :, 2] > cv2.add(im[:, :, 0], im[:, :, 1]))
-    im[mask] = 0
-    im[:, :, 2] = 0
-    im = dog(im, 1, 6)
-    im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    im = equalize(im)
-    return im
 
-def MakePreproc(s, names):
+def DoG(img, inner, outer):
+    """ Difference of Gaussians is a feature enhancement algorithm. """
+    innerBlur = cv2.GaussianBlur(img, (0, 0), inner)
+    outerBlur = cv2.GaussianBlur(img, (0, 0), outer)
+    diff = cv2.addWeighted(innerBlur, 1, outerBlur, -1, 0)
+
+    return diff
+
+
+def RemoveRed(img):
+    """ Removes red pixels from the image. """
+    if img.ndim == 3:
+        mask = (img[:, :, 2] > cv2.add(img[:, :, 0], img[:, :, 1]))
+        img[mask] = 0
+        img[:, :, 2] = 0
+
+
+def Sobel(img, ksize = 1):
+    img = np.float32(img)
+    gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=ksize)
+    gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=ksize)
+
+    return np.uint8(np.sqrt(np.power(gx, 2) + np.power(gy, 2)))
+
+
+def Preprocessing(img):
+    """ Preprocesses the color image and returns it in grayscale. """
+    img = cv2.bilateralFilter(img, 3, 10, 10)
+    img = Sharpen(img, 7, 2)
+    img = cv2.bilateralFilter(img, 3, 3, 3)
+    img = Sharpen(img, 2, 1)
+    RemoveRed(img)
+    img = DoG(img, 1, 6)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    img = HistogramEqualization(img)
+
+    return img
+
+
+def HoG(img, shape = (32, 48)):
+    """ Histogram of Oriented Gradients. """
+    winSize = shape
+    blockSize = (16, 16)
+    blockStride = (8, 8)
+    cellSize = (8, 8)
+    nbins = 9
+    hog = cv2.HOGDescriptor(winSize, blockSize, blockStride, cellSize, nbins)
+    hist = hog.compute(img)
+
+    return hist
+
+
+def ParallelizeData(data, func):
+    """ Splits workflow (func) on data between multiple CPU cores. """
+    dataSplit = np.array_split(data, CPU_CORES)
+    pool = mp.Pool(processes=CPU_CORES)
+    newData = pd.concat(pool.map(func, dataSplit))
+    pool.close()
+    pool.join()
+
+    return newData
+
+
+def BatchAugmentation(loadPicturesPath, savePath, readFormat, countAugmentations, indexes, datagen, csvFile):
+    """ The function for augmentation a batch of images on a single CPU core. """
+    elementAmount = len(csvFile)
+    for i in range(elementAmount):
+        file = csvFile.iloc[i].name
+        sh.copyfile(loadPicturesPath + file, savePath + file)
+        img = cv2.imread(loadPicturesPath + file, readFormat)[np.newaxis, ...]
+        augCounter = 0
+        for batch in datagen.flow(img, batch_size=1):
+            if augCounter == countAugmentations:
+                break
+            augName = file[:-4] + '_A{}.jpg'.format(augCounter)
+            cv2.imwrite(savePath + augName, batch[0, ...])
+            row = pd.Series([csvFile.iloc[i][0], csvFile.iloc[i][1], csvFile.iloc[i][2]], index=indexes)
+            row.name = augName
+            csvFile = csvFile.append(row)
+            augCounter += 1
+
+    return csvFile
+
+
+def Augmentation(csvPath, CSVFileName, loadPicturesPath, savePath, readFormat = 1, countAugmentations = 500):
+    """ Augments single dataset using multiprocessing. """
+
+    indexes = ['10_Classes', '20_Classes_Float', '20_Classes']
+    datagen = tensorflow.keras.preprocessing.image.ImageDataGenerator(
+        rotation_range=10,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        #rescale=1. / 255,
+        shear_range=0.2,
+        zoom_range=0.2,
+        brightness_range=(0.1, 1.2),
+        fill_mode='nearest')
+
+    csvFile = pd.read_csv(csvPath + CSVFileName, index_col=0)
+    csvFile.dropna()
+    workFunc = partial(BatchAugmentation, loadPicturesPath, savePath, readFormat, countAugmentations, indexes, datagen)
+    csvFile = ParallelizeData(csvFile, workFunc)
+    csvFile.to_csv(csvPath + CSVFileName[:-4] + '_Augmented.csv')
+
+
+def BatchPreprocessing(s, names):
+    """ The function for preprocessing a batch of images on a single CPU core. """
     for name in names:
-        im = cv2.imread("../Images/Augmented/" + s + name, 1)
-        im = cv2.resize(im, (32, 48))
-        im = preproc(im)
-        cv2.imwrite("../Images/Preproc/" + s + name, im)
+        img = cv2.imread("../Images/Augmented/" + s + name, 1)
+        img = cv2.resize(img, (32, 48))
+        img = Preprocessing(img)
+        cv2.imwrite("../Images/Preproc/" + s + name, img)
 
-def main():
-    """NewAugmentation("../Images/Labels",
-                    "YouTube.csv",
-                    "../Images/Original",
-                    "../Images/Augmented", countAugmentations=500)
-    """
-    NewAugmentation("../Images/Labels",
-                    "Clean.csv",
-                    "../Images/Original",
-                    "../Images/Augmented", countAugmentations=1000)
 
-    sets = ["Clean/"]
+def DataSetsPreprocessing(sets):
+    """ Preprocesses data sets using multiprocessing. """
     for s in sets:
         names = GetAllNames("../Images/Augmented/" + s)
-        names = np.array_split(names, CORE_COUNT)
-        pool = mp.Pool(processes=CORE_COUNT)
-        func = partial(MakePreproc, s)
-        pool.map(func, names)
-        pool.close()
-        pool.join()
-    """
-    im = cv2.imread("/opt/AccountEye/Images/Original/NewBalanced/73.png",  1)
-    im = cv2.resize(im, (32, 48))
-    im = preproc(im)
-    cv2.waitKey(0)"""
+        workFunc = partial(BatchPreprocessing, s)
+        ParallelizeData(names, workFunc)
+
+
+def Main():
+    sets = ["NewBalanced/"]
+    """Augmentation("../Images/Labels/",
+                    "NewBalanced.csv",
+                    "../Images/Original/",
+                    "../Images/Augmented/", countAugmentations=100)"""
+
+    DataSetsPreprocessing(sets)
+
 
 
 if __name__ == "__main__":
-    main()
+    Main()
