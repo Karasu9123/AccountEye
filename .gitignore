@@ -4,4 +4,5 @@ ImagePreprocessing/__pycache__/
 Images/
 venv/
 .idea/
+.ipynb_checkpoints
 *.hdf5
