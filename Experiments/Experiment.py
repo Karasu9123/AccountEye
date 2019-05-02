@@ -1,7 +1,7 @@
 import tensorflow.keras as K
 from tensorflow.keras.utils import multi_gpu_model
-import Experiments.Models as M
-import Experiments.Data as Data
+import Models as M
+import Data as Data
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt

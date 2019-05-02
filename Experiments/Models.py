@@ -3,7 +3,7 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, Dropout, Flatten, Input, Add, Activation
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, BatchNormalization, AveragePooling2D
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau
-from Experiments.Data import Generator, GeneratorWithAugmentation
+from Data import Generator, GeneratorWithAugmentation
 
 def ConstructModel(architecture, convlutionBlocks, denseLayer, filters, input_shape, numClasses):
     # TODO: Test this
