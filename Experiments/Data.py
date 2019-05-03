@@ -35,6 +35,7 @@ def LoadData(csvPaths, imgPath, rows, cols, channels = 3, trainPart = 0.6, testP
     test = int((trainPart + testPart) * countRow)
     xTrain, xTest, xValid = x[:train, ...], x[train:test, ...], x[test:, ...]
     yTrain, yTest, yValid = df.iloc[:train][labelRow].values, df.iloc[train:test][labelRow].values, df.iloc[test:][labelRow].values
+
     return (xTrain, yTrain), (xTest, yTest), (xValid, yValid)
 
 
@@ -43,12 +44,14 @@ def CountNumbers(csvPath):
     count = []
     for col in df.columns:
         count.append(df.groupby([col])[[col]].count())
+
     return count
 
 
 def MinCount(df, column):
     col = df.columns[column]
     count = df.groupby([col])[[col]].count()
+
     return count.min(0)[0]
 
 
@@ -60,6 +63,7 @@ def CropDS(df, column = 1):
     for i in range(rng):
         li.append(df[df[col] == i].sample(frac=1).head(minimal))
     df = pd.concat(li, axis=0, ignore_index=True)
+
     return df
 
 

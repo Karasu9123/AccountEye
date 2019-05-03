@@ -1,22 +1,25 @@
 import tensorflow.keras as K
 from tensorflow.keras.utils import multi_gpu_model
 import Models as M
-import Data as Data
+import D as D
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+
+
 
 def ShowWrongPredict(model, x, y):
     for i in range(0, y.size):
         predict = model.predict(np.expand_dims(x[i], axis=0))
         predict = np.argmax(predict, axis=1)
-        if (predict != y[i]):
+        if predict != y[i]:
             cv2.imshow(str(i), x[i])
             print(i, "| y: ", y[i] / 2, " x: ", predict / 2)
             cv2.waitKey(0)
     cv2.waitKey(0)
 
-def experiment():
+
+def Experiment():
     # Settings
     train_part = 0.6
     test_part = 0.3
@@ -29,8 +32,8 @@ def experiment():
     imgPath = '../Images/Preproc/'
 
     # Load data
-    (x_train, y_train_o), (x_test, y_test_o), (x_valid, y_valid_o) = Data.load_data(csvPaths, imgPath, img_rows, img_cols, channels=channels,
-                                                              train_part=train_part, test_part=test_part, labelRow='20_Classes')
+    (x_train, y_train_o), (x_test, y_test_o), (x_valid, y_valid_o) = D.LoadData(csvPaths, imgPath, img_rows, img_cols, channels=channels,
+                                                                                 train_part=train_part, test_part=test_part, labelRow='20_Classes')
 
     # Set type.
     x_train = x_train.astype('float32')
@@ -66,7 +69,8 @@ def experiment():
 
     # ShowWrongPredict(model, x_test, y_test_o)
 
-def networkSelection():
+
+def NetworkSelection():
     # TODO: Test and write
     csvPath = '../Images/Labels/All.csv'
     imagePath = '../Images/Resized/'
@@ -81,8 +85,8 @@ def networkSelection():
     data = [('label', 'image')]
 
     img_rows, img_cols, channels = 48, 32, 3
-    (x_train, y_train_o), (x_test, y_test_o) = Data.load_data(csvPath, imagePath, img_rows, img_cols, channels=channels,
-                                                              train_part=train_part)
+    (x_train, y_train_o), (x_test, y_test_o) = D.LoadData(csvPath, imagePath, img_rows, img_cols, channels=channels,
+                                                           train_part=train_part)
     x_train = x_train.astype('float32')
     x_test = x_test.astype('float32')
     x_train /= 255
@@ -104,9 +108,12 @@ def networkSelection():
                         history[name] = M.FitGenerator(model, x_train, yTrain, x_test, yTest, epochs=epochs, batch_size=32,
                                        modelName=name)
 
-def main():
+
+def Main():
     # networkSelection()
-    experiment()
+    Experiment()
+
+
 
 if __name__ == '__main__':
-    main()
+    Main()

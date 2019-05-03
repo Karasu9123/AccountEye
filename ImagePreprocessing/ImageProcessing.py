@@ -1,4 +1,5 @@
 import tensorflow.keras.preprocessing.image
+from matplotlib import pyplot as plt
 from functools import partial
 import numpy as np
 import cv2
@@ -87,11 +88,51 @@ def RemoveRed(img):
 
 
 def Sobel(img, ksize = 1):
-    img = np.float32(img)
-    gx = cv2.Sobel(img, cv2.CV_32F, 1, 0, ksize=ksize)
-    gy = cv2.Sobel(img, cv2.CV_32F, 0, 1, ksize=ksize)
+    gx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=ksize)
+    gy = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=ksize)
+    sobel = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
 
-    return np.uint8(np.sqrt(np.power(gx, 2) + np.power(gy, 2)))
+    return sobel
+
+
+def Laplacian(img, ksize=1):
+    laplacian = cv2.Laplacian(img, cv2.CV_64F, ksize=ksize)
+
+    return laplacian
+
+
+def Scharr(img):
+    gx = cv2.Scharr(img, cv2.CV_64F, 1, 0)
+    gy = cv2.Scharr(img, cv2.CV_64F, 0, 1)
+    scharr = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
+
+    return scharr
+
+
+def Prewitt(img):
+    kernelx = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
+    kernely = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]])
+    gx = cv2.filter2D(img, cv2.CV_64F, kernelx)
+    gy = cv2.filter2D(img, cv2.CV_64F, kernely)
+    prewitt = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
+
+    return prewitt
+
+
+def Roberts(img):
+    kernelx = np.array([[1, 0], [0, -1]])
+    kernely = np.array([[0, 1], [-1, 0],])
+    gx = cv2.filter2D(img, cv2.CV_64F, kernelx)
+    gy = cv2.filter2D(img, cv2.CV_64F, kernely)
+    roberts = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
+
+    return roberts
+
+
+def Canny(img, threshold1 = 0, threshold2 = 63):
+    canny = cv2.Canny(img, threshold1, threshold2)
+
+    return canny
 
 
 def Preprocessing(img):
@@ -192,14 +233,41 @@ def DataSetsPreprocessing(sets):
 
 
 def Main():
-    sets = ["NewBalanced/"]
-    """Augmentation("../Images/Labels/",
-                    "NewBalanced.csv",
-                    "../Images/Original/",
-                    "../Images/Augmented/", countAugmentations=100)"""
+    ksize = 11
+    folder = "../Images/Original/NewBalanced/"
+    names = GetAllNames(folder)
+    for name in names:
+        img = cv2.imread("{}{}".format(folder, name), 0)
 
-    DataSetsPreprocessing(sets)
+        dog = DoG(img, 1, 6)
+        preproc = Preprocessing(img)
+        sobel = Sobel(img, ksize)
+        prewitt = Prewitt(img)
+        canny = Canny(img)
+        roberts = Roberts(img)
+        scharr = Scharr(img)
+        laplacian = Laplacian(img, ksize)
 
+        plt.subplot(3, 3, 1), plt.imshow(img, cmap='gray')
+        plt.title('Original'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 2), plt.imshow(dog, cmap='gray')
+        plt.title('DoG'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 3), plt.imshow(preproc, cmap='gray')
+        plt.title('Preproc'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 4), plt.imshow(roberts, cmap='gray')
+        plt.title('Roberts'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 5), plt.imshow(prewitt, cmap='gray')
+        plt.title('Prewitt'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 6), plt.imshow(canny, cmap='gray')
+        plt.title('Canny'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 7), plt.imshow(sobel, cmap='gray')
+        plt.title('Sobel'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 8), plt.imshow(scharr, cmap='gray')
+        plt.title('Scharr'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 9), plt.imshow(laplacian, cmap='gray')
+        plt.title('Laplacian'), plt.xticks([]), plt.yticks([])
+
+        plt.show()
 
 
 if __name__ == "__main__":

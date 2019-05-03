@@ -2,15 +2,16 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import filedialog
 from PIL import Image, ImageTk
-import numpy as np
-import math
 import cv2
 import json
 
-fromfile = True
-file = '14'
 
-def countCameras():
+fromfile = True
+file = ''   # Picture name in ./Test/ folder.
+
+
+
+def CountCameras():
     count = 0
     while True:
         cap = cv2.VideoCapture(count)
@@ -20,15 +21,6 @@ def countCameras():
         else:
             break
     return count
-
-def Sobel(data):
-    newData = np.ndarray((data.shape[0] - 2, data.shape[1] - 2), dtype=int)
-    for x in range(newData.shape[0]):
-        for y in range(newData.shape[1]):
-            newData[x, y] = math.sqrt((-int(data[x-1, y-1]) + int(data[x-1, y+1]) - 2*int(data[x, y-1]) + 2*int(data[x, y+1]) -
-                                      int(data[x+1, y-1]) + int(data[x+1, y+1])) ** 2 + (-int(data[x-1, y-1]) - 2*int(data[x-1, y]) -
-                                      int(data[x-1, y+1]) + int(data[x+1, y-1]) + 2*int(data[x+1, y]) + int(data[x+1, y+1])) ** 2)
-    return newData
 
 
 class Settings:
@@ -43,24 +35,25 @@ class Settings:
         self.digitLabel = tk.Label(self.root)
         self.digitNum = tk.Spinbox(self.root)
         self.buttonSave = tk.Button(self.root)
-        self.createWidgets()
+        self.CreateWidgets()
         self.curIndex = 0
         self.rectangles = ()
         self.isDrawing = False
         self.startPoint = None
         self.endPoint = None
         if not fromfile:
-            self.camCount = countCameras()
+            self.camCount = CountCameras()
             if self.camCount == 0:
                 messagebox.showwarning("Camera not found!", "Please, connect camera to device and try again.")
                 self.root.quit()
             else:
                 self.cap = cv2.VideoCapture(self.curIndex)
-                self.showVideo()
+                self.ShowVideo()
         else:
-            self.showVideo()
+            self.ShowVideo()
 
-    def createWidgets(self):
+
+    def CreateWidgets(self):
         # root.
         self.root.title("Settings")
         self.root.geometry('550x550')
@@ -74,7 +67,7 @@ class Settings:
         for index in range(self.camCount):
             self.camLBox.insert(index, "camera №" + str(index))
         self.camLBox.selection_set(0)
-        self.camLBox.bind('<<ListboxSelect>>', self.selectedCamChanged)
+        self.camLBox.bind('<<ListboxSelect>>', self.SelectedCamChanged)
 
         # periodLabel.
         self.periodLabel["text"] = "Period (days):"
@@ -90,13 +83,13 @@ class Settings:
 
         # buttonSave.
         self.buttonSave["text"] = "Save"
-        self.buttonSave["command"] = self.buttonSaveClicked
+        self.buttonSave["command"] = self.ButtonSaveClicked
 
         # canvas.
         self.canvas["bg"] = "black"
-        self.canvas.bind("<Button-1>", self.buttonClick)
-        self.canvas.bind("<ButtonRelease-1>", self.buttonRelease)
-        self.canvas.bind("<B1-Motion>", self.buttonMove)
+        self.canvas.bind("<Button-1>", self.ButtonClick)
+        self.canvas.bind("<ButtonRelease-1>", self.ButtonRelease)
+        self.canvas.bind("<B1-Motion>", self.ButtonMove)
 
         # Packing.
         self.buttonSave.pack(anchor=tk.NW)
@@ -108,7 +101,8 @@ class Settings:
         self.camLBox.pack(anchor=tk.N)
         self.canvas.pack(side=tk.BOTTOM, expand=tk.YES, fill=tk.BOTH)
 
-    def showVideo(self):
+
+    def ShowVideo(self):
         data = None
         if fromfile:
             data = cv2.imread('Test/' + file + '.jpg', 1)
@@ -130,7 +124,7 @@ class Settings:
                 photo = ImageTk.PhotoImage(image=im)
                 self.canvas.create_image(0, 0, image=photo, anchor=tk.NW)
                 if self.startPoint is not None:
-                    self.createRectangle()
+                    self.CreateRectangle()
                 self.root.update()
                 cv2.waitKey(25)
             except:
@@ -138,23 +132,24 @@ class Settings:
                     self.cap.release()
                 raise
 
-    def selectedCamChanged(self, evt):
+
+    def SelectedCamChanged(self, evt):
         if self.curIndex == self.camLBox.curselection()[0]:
             return
         oldCap = self.cap
         self.curIndex = self.camLBox.curselection()[0]
         self.cap = cv2.VideoCapture(self.curIndex)
         oldCap.release()
-        return
 
-    def buttonSaveClicked(self):
+
+    def ButtonSaveClicked(self):
         if self.startPoint is None:
             messagebox.showwarning("Region isn't selected", "Please, select the region.")
             return
         answer = messagebox.askquestion("Are you sure?", "Do you want to save settings?")
         if answer == "yes":
             d = filedialog.askdirectory()
-            (x0, y0, x1, y1) = self.comparePoint()
+            (x0, y0, x1, y1) = self.ComparePoint()
             x0 /= self.canvas.winfo_width()
             x1 /= self.canvas.winfo_width()
             y0 /= self.canvas.winfo_height()
@@ -168,21 +163,25 @@ class Settings:
             with open(path, "w") as outfile:
                 json.dump(data, outfile)
 
-    def buttonClick(self, evt):
+
+    def ButtonClick(self, evt):
         self.isDrawing = True
         self.endPoint = {"x": evt.x, "y": evt.y}
         self.startPoint = {"x": evt.x, "y": evt.y}
 
-    def buttonMove(self, evt):
+
+    def ButtonMove(self, evt):
         if self.isDrawing:
             self.endPoint = {"x": evt.x, "y": evt.y}
 
-    def buttonRelease(self, evt):
+
+    def ButtonRelease(self, evt):
         self.endPoint = {"x": evt.x, "y": evt.y}
         self.isDrawing = False
 
-    def createRectangle(self):
-        (x0, y0, x1, y1) = self.comparePoint()
+
+    def CreateRectangle(self):
+        (x0, y0, x1, y1) = self.ComparePoint()
         self.canvas.create_rectangle(x0, y0, x1, y1, outline="red")
 
         rectCount = int(self.digitNum.get())
@@ -192,7 +191,8 @@ class Settings:
             x += rectWidth
             self.canvas.create_line(x, y0, x, y1, fill="red")
 
-    def comparePoint(self):
+
+    def ComparePoint(self):
         if self.startPoint["x"] < self.endPoint["x"]:
             x0 = self.startPoint["x"]
             x1 = self.endPoint["x"]
@@ -208,4 +208,5 @@ class Settings:
         return x0, y0, x1, y1
 
 
-sett = Settings()
+if __name__ == "__main__":
+    Settings()
