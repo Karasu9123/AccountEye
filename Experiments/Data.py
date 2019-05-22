@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import cv2
-import random
-import tensorflow.keras.preprocessing.image
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 
 
@@ -55,7 +54,7 @@ def MinCount(df, column):
     return count.min(0)[0]
 
 
-def CropDS(df, column = 1):
+def CropDS(df, column=1):
     minimal = MinCount(df, column) # количество изображений класса с найменьшим количеством примеров
     col = df.columns[column]
     li = []
@@ -67,21 +66,35 @@ def CropDS(df, column = 1):
     return df
 
 
-def Generator(features, labels, batchSize):
-    # FIXME: It's not work! It's just a sample!
-    batchFeatures = np.zeros((batchSize, 64, 64, 3))
-    batchLabels = np.zeros((batchSize, 1))
+def Generator(features, labels, batchSize, processingFunction, imageGenerator=None):
+    if imageGenerator is None:
+        imageGenerator = ImageDataGenerator(
+            rotation_range=30,
+            width_shift_range=0,
+            height_shift_range=0,
+            rescale=1. / 255,
+            shear_range=20,  # поворот, сдвиг, растяжение
+            zoom_range=0.2,
+            brightness_range=(0.7, 1.3),  # 0.7 - 1.3
+            fill_mode='nearest',
+            cval=0)
     while True:
+        # Random indexes
+        index = np.array(np.random.choice(features.shape[0] - 1, batchSize, replace=False))
+
+        # Augmentation batch
+        for batch in imageGenerator.flow(features[index], batch_size=batchSize, shuffle=False):
+            batchFeatures = batch
+            break
+        batchLabels = labels[index]
+
         for i in range(batchSize):
-            # choose random index in features
-            index = random.choice(len(features), 1)
-            batchFeatures[i] = features[index] #some_processing(features[index])
-            batchLabels[i] = labels[index]
+            batchFeatures[i] = processingFunction(batchFeatures[i])
         yield batchFeatures, batchLabels
 
 
 def GeneratorWithAugmentation():
-    return tensorflow.keras.preprocessing.image.ImageDataGenerator(
+    return ImageDataGenerator(
         rotation_range=20,
         width_shift_range=0.2,
         height_shift_range=0.2,
@@ -90,3 +103,5 @@ def GeneratorWithAugmentation():
         zoom_range=0.2,
         brightness_range=(0.01, 1.2),
         fill_mode='nearest')
+
+

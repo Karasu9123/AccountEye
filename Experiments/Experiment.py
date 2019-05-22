@@ -1,7 +1,7 @@
 import tensorflow.keras as K
 from tensorflow.keras.utils import multi_gpu_model
-import Models as M
-import D as D
+import Experiments.Models as M
+import Experiments.Data as D
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,60 +21,63 @@ def ShowWrongPredict(model, x, y):
 
 def Experiment():
     # Settings
-    train_part = 0.6
-    test_part = 0.3
-    batch_size = 256
-    num_classes = 20
+    trainPart = 0.6
+    testPart = 0.3
+    batchSize = 256
+    numClasses = 20
     epochs = 10
-    img_rows, img_cols, channels = 48, 32, 1
-    input_shape = (img_rows, img_cols, channels)
-    csvPaths = ['../Images/Augmented/YouTube_Blur+Augmentation.csv', '../Images/Augmented/NewBalanced_Blur+Augmentation.csv', '../Images/Augmented/Clean_Blur+Augmentation.csv']
+    rows, cols, channels = 48, 32, 1
+    input_shape = (rows, cols, channels)
+    csvPaths = ['../Images/Augmented/YouTube_Blur+Augmentation.csv',
+                '../Images/Augmented/NewBalanced_Blur+Augmentation.csv',
+                '../Images/Augmented/Clean_Blur+Augmentation.csv']
     imgPath = '../Images/Preproc/'
 
     # Load data
-    (x_train, y_train_o), (x_test, y_test_o), (x_valid, y_valid_o) = D.LoadData(csvPaths, imgPath, img_rows, img_cols, channels=channels,
-                                                                                 train_part=train_part, test_part=test_part, labelRow='20_Classes')
+    (xTrain, yTrainO), (xTest, yTestO), (xValid, yValidO) = D.LoadData(csvPaths, imgPath, rows, cols, channels=channels,
+                                                                       trainPart=trainPart, testPart=testPart,
+                                                                       labelRow='20_Classes')
 
     # Set type.
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-    x_valid = x_valid.astype('float32')
+    xTrain = xTrain.astype('float32')
+    xTest = xTest.astype('float32')
+    xValid = xValid.astype('float32')
 
     # Normalize to (0, 1) interval.
-    x_train /= 255
-    x_test /= 255
-    x_valid /= 255
+    xTrain /= 255
+    xTest /= 255
+    xValid /= 255
 
     # Print x.
-    print('x_train shape:', x_train.shape)
-    print(x_train.shape[0], 'train samples')
-    print(x_test.shape[0], 'test samples')
-    print(x_valid.shape[0], 'valid samples')
+    print('xTrain shape:', xTrain.shape)
+    print(xTrain.shape[0], 'train samples')
+    print(xTest.shape[0], 'test samples')
+    print(xValid.shape[0], 'valid samples')
 
     # Converts y vector to binary class matrix.
-    y_train = K.utils.to_categorical(y_train_o, num_classes)
-    y_test = K.utils.to_categorical(y_test_o, num_classes)
-    y_valid = K.utils.to_categorical(y_valid_o, num_classes)
+    y_train = K.utils.to_categorical(yTrainO, numClasses)
+    y_test = K.utils.to_categorical(yTestO, numClasses)
+    y_valid = K.utils.to_categorical(yValidO, numClasses)
 
     # Create model.
     #model = M.LoadModel("ResNet_10_All-131-0.94.hdf5")
-    model = M.CreateResNetModel(input_shape, num_classes)
+    model = M.CreateResNetModel(input_shape, numClasses)
     model = multi_gpu_model(model, gpus=2)
     # model.summary()
 
     # Compile and fit.
     M.CompileModel(model)
-    M.FitModel(model, x_train, y_train, x_test, y_test, epochs=epochs, batch_size=batch_size, modelName='ResNet_All_Blur')
-    M.EvaluateModel(model, x_valid, y_valid)
+    M.FitModel(model, xTrain, y_train, xTest, y_test, epochs=epochs, batch_size=batchSize, modelName='ResNet_All_Blur')
+    M.EvaluateModel(model, xValid, y_valid)
 
-    # ShowWrongPredict(model, x_test, y_test_o)
+    # ShowWrongPredict(model, xTest, yTestO)
 
 
 def NetworkSelection():
     # TODO: Test and write
     csvPath = '../Images/Labels/All.csv'
     imagePath = '../Images/Resized/'
-    train_part = 0.8
+    trainPart = 0.8
     epochs = 100
 
     architecture = ['ResNet', 'VGG']
@@ -85,12 +88,12 @@ def NetworkSelection():
     data = [('label', 'image')]
 
     img_rows, img_cols, channels = 48, 32, 3
-    (x_train, y_train_o), (x_test, y_test_o) = D.LoadData(csvPath, imagePath, img_rows, img_cols, channels=channels,
-                                                           train_part=train_part)
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-    x_train /= 255
-    x_test /= 255
+    (xTrain, yTrainO), (xTest, yTestO) = D.LoadData(csvPath, imagePath, img_rows, img_cols, channels=channels,
+                                                    trainPart=trainPart)
+    xTrain = xTrain.astype('float32')
+    xTest = xTest.astype('float32')
+    xTrain /= 255
+    xTest /= 255
     history = {}
 
     for arc in architecture:
@@ -100,12 +103,12 @@ def NetworkSelection():
                     for classes in numClasses:
                         name = '{}_{}-blocks_{}-filters_{}-dense'.format(arc, block, filter, dense, classes[1])
                         print('-------------------------\n', name)
-                        yTrain = K.utils.to_categorical(y_train_o, classes[1])
-                        yTest = K.utils.to_categorical(y_test_o, classes[1])
+                        yTrain = K.utils.to_categorical(yTrainO, classes[1])
+                        yTest = K.utils.to_categorical(yTestO, classes[1])
                         model = M.ConstructModel(arc, block, dense, filter, (img_rows, img_cols, channels), classes[1])
                         model = multi_gpu_model(model, gpus=2)
                         M.CompileModel(model)
-                        history[name] = M.FitGenerator(model, x_train, yTrain, x_test, yTest, epochs=epochs, batch_size=32,
+                        history[name] = M.FitGenerator(model, xTrain, yTrain, xTest, yTest, epochs=epochs, batch_size=32,
                                        modelName=name)
 
 
@@ -117,3 +120,4 @@ def Main():
 
 if __name__ == '__main__':
     Main()
+

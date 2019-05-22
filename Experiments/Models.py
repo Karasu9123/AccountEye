@@ -3,7 +3,7 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, Dropout, Flatten, Input, Add, Activation
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, BatchNormalization, AveragePooling2D
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau
-from Data import Generator, GeneratorWithAugmentation
+from Experiments.Data import Generator, GeneratorWithAugmentation
 
 
 
@@ -176,3 +176,5 @@ def EvaluateModel(model, x_test, y_test):
     score = model.evaluate(x_test, y_test, verbose=0)
     print('Test loss:', score[0])
     print('Test accuracy:', score[1])
+
+
