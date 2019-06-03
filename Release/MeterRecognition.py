@@ -37,7 +37,7 @@ def CropAndPreproc(photo, x0, y0, x1, y1, digitNum, channels):
         right = left + areaLength
         digit_i = photo[y0:y1, left:right].copy()
         resized = cv2.resize(digit_i, (32, 48))
-        preprocessed = IP.Preprocessing(resized)
+        preprocessed = IP.PreprocDoG(resized)
         if channels == 1:
             preprocessed = preprocessed[..., np.newaxis]
         elif channels == 3:
@@ -99,7 +99,7 @@ def Main():
         photo = cv2.resize(photo, (width, height))
 
         if onlypreproc:
-            photo = IP.Preprocessing(photo)
+            photo = IP.PreprocDoG(photo)
         else:
             crop = CropAndPreproc(photo, x0, y0, x1, y1, digitNum, channels)
             predict = Predict(crop, model)

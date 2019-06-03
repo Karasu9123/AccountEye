@@ -88,23 +88,30 @@ def RemoveRed(img):
 
 
 def Sobel(img, ksize = 1):
+    img = np.array(img, dtype=np.float)
+    scale = 4 if ksize == 1 else pow(2, 2 * ksize - 3)
+
     gx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=ksize)
     gy = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=ksize)
-    sobel = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
+    sobel = (np.sqrt(np.power(gx, 2) + np.power(gy, 2)) / scale).astype(np.uint8)
 
     return sobel
 
 
-def Laplacian(img, ksize=1):
-    laplacian = cv2.Laplacian(img, cv2.CV_64F, ksize=ksize)
+def Laplacian(img, ksize = 1):
+    img = np.array(img, dtype=np.float)
+    scale = 8 if ksize == 1 else pow(2, 2 * ksize - 4)
+
+    laplacian = np.abs(cv2.Laplacian(img, cv2.CV_64F, ksize=ksize, scale = 1 / scale)).astype(np.uint8)
 
     return laplacian
 
 
 def Scharr(img):
+    scale = 26
     gx = cv2.Scharr(img, cv2.CV_64F, 1, 0)
     gy = cv2.Scharr(img, cv2.CV_64F, 0, 1)
-    scharr = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
+    scharr = (np.sqrt(np.power(gx, 2) + np.power(gy, 2)) / scale).astype(np.uint8)
 
     return scharr
 
@@ -112,9 +119,11 @@ def Scharr(img):
 def Prewitt(img):
     kernelx = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
     kernely = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]])
+    scale = 6
+
     gx = cv2.filter2D(img, cv2.CV_64F, kernelx)
     gy = cv2.filter2D(img, cv2.CV_64F, kernely)
-    prewitt = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
+    prewitt = (np.sqrt(np.power(gx, 2) + np.power(gy, 2)) / scale).astype(np.uint8)
 
     return prewitt
 
@@ -122,9 +131,11 @@ def Prewitt(img):
 def Roberts(img):
     kernelx = np.array([[1, 0], [0, -1]])
     kernely = np.array([[0, 1], [-1, 0],])
+    scale = 2
+
     gx = cv2.filter2D(img, cv2.CV_64F, kernelx)
     gy = cv2.filter2D(img, cv2.CV_64F, kernely)
-    roberts = np.sqrt(np.power(gx, 2) + np.power(gy, 2))
+    roberts = (np.sqrt(np.power(gx, 2) + np.power(gy, 2)) / scale).astype(np.uint8)
 
     return roberts
 
@@ -135,16 +146,55 @@ def Canny(img, threshold1 = 0, threshold2 = 63):
     return canny
 
 
-def Preprocessing(img):
-    """ Preprocesses the color image and returns it in grayscale. """
+def PreprocDoG(img):
+    img = cv2.bilateralFilter(img, 3, 10, 10)
+    img = Sharpen(img, 7, 2)
+    img = cv2.bilateralFilter(img, 3, 3, 3)
+    img = Sharpen(img, 2, 1)
+    img = DoG(img, 1, 6)
+    img = HistogramEqualization(img)
+
+    return img
+
+
+def PreprocDoGThreshold(img):
+    img = cv2.bilateralFilter(img, 3, 10, 10)
+    img = Sharpen(img, 7, 2)
+    img = cv2.bilateralFilter(img, 3, 3, 3)
+    img = Sharpen(img, 2, 1)
+    img = DoG(img, 1, 6)
+    cv2.threshold(img, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU, img)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    img = HistogramEqualization(img)
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+    return img
+
+
+def PreprocSobel(img):
     img = cv2.bilateralFilter(img, 3, 10, 10)
     img = Sharpen(img, 7, 2)
     img = cv2.bilateralFilter(img, 3, 3, 3)
     img = Sharpen(img, 2, 1)
     RemoveRed(img)
-    img = DoG(img, 1, 6)
+    img = Sobel(img, 3)
+    img = CLAHE(img)
+    img = ((img / img.max()) * 255).astype(np.uint)
+
+    return img
+
+
+def PreprocSobelThreshold(img):
+    img = cv2.bilateralFilter(img, 3, 10, 10)
+    img = Sharpen(img, 7, 2)
+    img = cv2.bilateralFilter(img, 3, 3, 3)
+    img = Sharpen(img, 2, 1)
+    RemoveRed(img)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    img = Sobel(img, 3)
+    cv2.threshold(img, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU, img)
     img = HistogramEqualization(img)
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     return img
 
@@ -220,7 +270,7 @@ def BatchPreprocessing(s, names):
     for name in names:
         img = cv2.imread("../Images/Augmented/" + s + name, 1)
         img = cv2.resize(img, (32, 48))
-        img = Preprocessing(img)
+        img = PreprocDoG(img)
         cv2.imwrite("../Images/Preproc/" + s + name, img)
 
 
@@ -232,15 +282,13 @@ def DataSetsPreprocessing(sets):
         ParallelizeData(names, workFunc)
 
 
-def Main():
-    ksize = 11
-    folder = "../Images/Original/NewBalanced/"
+def CompareEdgeDetection(folder = "../Images/Original/NewBalanced/", ksize = 11):
     names = GetAllNames(folder)
     for name in names:
         img = cv2.imread("{}{}".format(folder, name), 0)
 
         dog = DoG(img, 1, 6)
-        preproc = Preprocessing(img)
+        preproc = PreprocDoGThreshold(img)
         sobel = Sobel(img, ksize)
         prewitt = Prewitt(img)
         canny = Canny(img)
@@ -268,6 +316,34 @@ def Main():
         plt.title('Laplacian'), plt.xticks([]), plt.yticks([])
 
         plt.show()
+
+
+def ComparePreprocessing(folder = "../Images/Original/NewBalanced/"):
+    names = GetAllNames(folder)
+    for name in names:
+        img = cv2.imread("{}{}".format(folder, name), 0)
+        pD = PreprocDoG(img)
+        pS = PreprocSobel(img)
+        pDT = PreprocDoGThreshold(img)
+        pST = PreprocSobelThreshold(img)
+
+        plt.subplot(3, 3, 1), plt.imshow(pD, cmap='gray')
+        plt.title('DoG'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 3), plt.imshow(pS, cmap='gray')
+        plt.title('Sobel'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 5), plt.imshow(img, cmap='gray')
+        plt.title('Original'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 7), plt.imshow(pDT, cmap='gray')
+        plt.title('DoG + Threshold'), plt.xticks([]), plt.yticks([])
+        plt.subplot(3, 3, 9), plt.imshow(pST, cmap='gray')
+        plt.title('Sobel + Threshold'), plt.xticks([]), plt.yticks([])
+
+        plt.show()
+
+
+
+def Main():
+    ComparePreprocessing()
 
 
 if __name__ == "__main__":
