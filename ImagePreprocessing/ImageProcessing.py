@@ -151,8 +151,12 @@ def PreprocDoG(img):
     img = Sharpen(img, 7, 2)
     img = cv2.bilateralFilter(img, 3, 3, 3)
     img = Sharpen(img, 2, 1)
+    RemoveRed(img)
     img = DoG(img, 1, 6)
-    img = HistogramEqualization(img)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    img = CLAHE(img)
+    img = ((img / img.max()) * 255).astype(np.uint8)
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     return img
 
@@ -162,9 +166,10 @@ def PreprocDoGThreshold(img):
     img = Sharpen(img, 7, 2)
     img = cv2.bilateralFilter(img, 3, 3, 3)
     img = Sharpen(img, 2, 1)
+    RemoveRed(img)
     img = DoG(img, 1, 6)
-    cv2.threshold(img, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU, img)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
+    cv2.threshold(img, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU, img)
     img = HistogramEqualization(img)
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
@@ -177,9 +182,11 @@ def PreprocSobel(img):
     img = cv2.bilateralFilter(img, 3, 3, 3)
     img = Sharpen(img, 2, 1)
     RemoveRed(img)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if img.ndim == 3 else img
     img = Sobel(img, 3)
     img = CLAHE(img)
-    img = ((img / img.max()) * 255).astype(np.uint)
+    img = ((img / img.max()) * 255).astype(np.uint8)
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     return img
 
@@ -216,7 +223,8 @@ def ParallelizeData(data, func):
     """ Splits workflow (func) on data between multiple CPU cores. """
     dataSplit = np.array_split(data, CPU_CORES)
     pool = mp.Pool(processes=CPU_CORES)
-    newData = pd.concat(pool.map(func, dataSplit))
+    map = pool.map(func, dataSplit)
+    newData = None if map[0] is None else pd.concat(map)
     pool.close()
     pool.join()
 
@@ -249,13 +257,13 @@ def Augmentation(csvPath, CSVFileName, loadPicturesPath, savePath, readFormat = 
 
     indexes = ['10_Classes', '20_Classes_Float', '20_Classes']
     datagen = tensorflow.keras.preprocessing.image.ImageDataGenerator(
-        rotation_range=10,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
+        rotation_range=30,
+        width_shift_range=0.,
+        height_shift_range=0.,
         #rescale=1. / 255,
-        shear_range=0.2,
+        shear_range=20,
         zoom_range=0.2,
-        brightness_range=(0.1, 1.2),
+        brightness_range=(0.7, 1.3),
         fill_mode='nearest')
 
     csvFile = pd.read_csv(csvPath + CSVFileName, index_col=0)
@@ -265,20 +273,20 @@ def Augmentation(csvPath, CSVFileName, loadPicturesPath, savePath, readFormat = 
     csvFile.to_csv(csvPath + CSVFileName[:-4] + '_Augmented.csv')
 
 
-def BatchPreprocessing(s, names):
+def BatchPreprocessing(folder, src, dst, preprocFunc, names):
     """ The function for preprocessing a batch of images on a single CPU core. """
     for name in names:
-        img = cv2.imread("../Images/Augmented/" + s + name, 1)
+        img = cv2.imread(src + folder + name, 1)
         img = cv2.resize(img, (32, 48))
-        img = PreprocDoG(img)
-        cv2.imwrite("../Images/Preproc/" + s + name, img)
+        img = preprocFunc(img)
+        cv2.imwrite(dst + folder + name, img)
 
 
-def DataSetsPreprocessing(sets):
+def DataSetsPreprocessing(folders, src, dst, preprocFunc = PreprocDoG):
     """ Preprocesses data sets using multiprocessing. """
-    for s in sets:
-        names = GetAllNames("../Images/Augmented/" + s)
-        workFunc = partial(BatchPreprocessing, s)
+    for folder in folders:
+        names = GetAllNames(src + folder)
+        workFunc = partial(BatchPreprocessing, folder, src, dst, preprocFunc)
         ParallelizeData(names, workFunc)
 
 
@@ -341,10 +349,19 @@ def ComparePreprocessing(folder = "../Images/Original/NewBalanced/"):
         plt.show()
 
 
+def CreateExperimentDS():
+    datasets = ["Clean/", "NewBalanced/", "Meter_1/", "Meter_2/", "YouTube/"]
+    dstFolders = ["DoGThreshold/", "DoG/", "SobelThreshold/", "Sobel/"]
+    src = "../Images/Augmented/"
+    dst = "../Images/Preprocessed/"
+    preprocFuncs = [PreprocDoGThreshold, PreprocDoG, PreprocSobelThreshold, PreprocSobel]
+    for idx, preprocFunc in enumerate(preprocFuncs):
+        DataSetsPreprocessing(datasets, src, dst + dstFolders[idx], preprocFunc)
+
+
 
 def Main():
-    ComparePreprocessing()
-
+    CreateExperimentDS()
 
 if __name__ == "__main__":
     Main()
